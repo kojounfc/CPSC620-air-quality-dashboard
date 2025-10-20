@@ -39,6 +39,8 @@ def clean_data(df):
     """
     Clean the air quality dataset by handling missing values and data types.
     
+    The source dataset encodes missing values as -200. These are converted to NaN.
+    
     Args:
         df (pd.DataFrame): Raw dataset
         
@@ -48,23 +50,15 @@ def clean_data(df):
     if df is None:
         return None
     
-    # Define the missing value code used in the source dataset
     MISSING_VALUE_CODE = -200
-    
-    
     # Create a copy to avoid modifying the original
     df_clean = df.copy()
     
-    # Replace -200 (missing data indicator) with NaN
-    # This addresses the core enhancement requirement.
-    df_clean = df_clean.replace(MISSING_VALUE_CODE, np.nan)
-    
     # Convert date and time columns
-    df_clean['Date'] = pd.to_datetime(df_clean['Date'], format='%d/%m/%Y')
-    df_clean['Time'] = pd.to_datetime(df_clean['Time'], format='%H.%M.%S').dt.time
+    df_clean['Date'] = pd.to_datetime(df_clean['Date'], format='%d/%m/%Y', errors='coerce')
+    df_clean['Time'] = pd.to_datetime(df_clean['Time'], format='%H.%M.%S', errors='coerce').dt.time
     
     # Create datetime column for easier time series analysis
-    # Only create DateTime for rows where both Date and Time are valid
     valid_datetime_mask = df_clean['Date'].notna() & df_clean['Time'].notna()
     df_clean['DateTime'] = pd.NaT
     
@@ -76,17 +70,34 @@ def clean_data(df):
     
     # Convert numeric columns, handling comma as decimal separator
     numeric_columns = ['CO(GT)', 'PT08.S1(CO)', 'NMHC(GT)', 'C6H6(GT)', 
-                      'PT08.S2(NMHC)', 'NOx(GT)', 'PT08.S3(NOx)', 'NO2(GT)', 
-                      'PT08.S4(NO2)', 'PT08.S5(O3)', 'T', 'RH', 'AH']
+                       'PT08.S2(NMHC)', 'NOx(GT)', 'PT08.S3(NOx)', 'NO2(GT)', 
+                       'PT08.S4(NO2)', 'PT08.S5(O3)', 'T', 'RH', 'AH']
     
     for col in numeric_columns:
         if col in df_clean.columns:
             # Replace comma with dot for decimal separator
-            df_clean[col] = df_clean[col].astype(str).str.replace(',', '.')
+            df_clean[col] = df_clean[col].astype(str).str.replace(',', '.', regex=False)
             df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
     
+    # 🌟 ENHANCEMENT: Replace -200 (missing data indicator) with NaN 🌟
+    # This must happen AFTER numeric conversion
+    # Count -200 values BEFORE cleaning
+    before_count = (df_clean == MISSING_VALUE_CODE).sum()
+    total_before = before_count.sum()
+    
+    if total_before > 0:
+        print(f"\n🔍 Found -200 values in {(before_count > 0).sum()} columns:")
+        print(before_count[before_count > 0])
+    
+    # Replace -200 with NaN across all columns
+    df_clean = df_clean.replace(MISSING_VALUE_CODE, np.nan)
+    
+    # Verify AFTER cleaning
+    after_count = (df_clean == MISSING_VALUE_CODE).sum().sum()
+    print(f"\n✅ Replaced {total_before} instances of -200 with NaN")
+    print(f"✅ Remaining -200 values: {after_count}")
+    
     return df_clean
-
 
 def get_data_summary(df):
     """
