@@ -3,16 +3,10 @@ Data analysis and cleaning functions for the UCI Air Quality Dataset.
 
 This module contains functions for loading, cleaning, and analyzing
 air quality data from an Italian city monitoring station.
-
-Note: The source dataset encodes missing or invalid sensor readings as -200.
-This code handles this by converting all -200 values to NaN.
 """
 
 import pandas as pd
 import numpy as np
-
-# Constant for the missing value code in the source dataset
-MISSING_VALUE_CODE = -200
 
 
 def load_data(file_path="data/AirQualityUCI.csv"):
@@ -40,13 +34,10 @@ def load_data(file_path="data/AirQualityUCI.csv"):
         print(f"Error loading data: {e}")
         return None
 
----
 
 def clean_data(df):
     """
     Clean the air quality dataset by handling missing values and data types.
-    
-    The source dataset encodes missing values as -200. These are converted to NaN.
     
     Args:
         df (pd.DataFrame): Raw dataset
@@ -57,17 +48,20 @@ def clean_data(df):
     if df is None:
         return None
     
+    # Define the missing value code used in the source dataset
+    MISSING_VALUE_CODE = -200
+    
+    
     # Create a copy to avoid modifying the original
     df_clean = df.copy()
     
-    # 🌟 ENHANCEMENT: Replace -200 (missing data indicator) with NaN 🌟
-    # This addresses the requirement to clean all columns containing -200.
+    # Replace -200 (missing data indicator) with NaN
+    # This addresses the core enhancement requirement.
     df_clean = df_clean.replace(MISSING_VALUE_CODE, np.nan)
     
     # Convert date and time columns
-    df_clean['Date'] = pd.to_datetime(df_clean['Date'], format='%d/%m/%Y', errors='coerce')
-    # The original time format was '%H.%M.%S', which is preserved.
-    df_clean['Time'] = pd.to_datetime(df_clean['Time'], format='%H.%M.%S', errors='coerce').dt.time
+    df_clean['Date'] = pd.to_datetime(df_clean['Date'], format='%d/%m/%Y')
+    df_clean['Time'] = pd.to_datetime(df_clean['Time'], format='%H.%M.%S').dt.time
     
     # Create datetime column for easier time series analysis
     # Only create DateTime for rows where both Date and Time are valid
@@ -82,26 +76,21 @@ def clean_data(df):
     
     # Convert numeric columns, handling comma as decimal separator
     numeric_columns = ['CO(GT)', 'PT08.S1(CO)', 'NMHC(GT)', 'C6H6(GT)', 
-                       'PT08.S2(NMHC)', 'NOx(GT)', 'PT08.S3(NOx)', 'NO2(GT)', 
-                       'PT08.S4(NO2)', 'PT08.S5(O3)', 'T', 'RH', 'AH']
+                      'PT08.S2(NMHC)', 'NOx(GT)', 'PT08.S3(NOx)', 'NO2(GT)', 
+                      'PT08.S4(NO2)', 'PT08.S5(O3)', 'T', 'RH', 'AH']
     
     for col in numeric_columns:
         if col in df_clean.columns:
             # Replace comma with dot for decimal separator
-            # This step also handles original -200 values that were converted to np.nan
-            # as .astype(str) will convert NaN to 'nan', which .str.replace will ignore.
-            df_clean[col] = df_clean[col].astype(str).str.replace(',', '.', regex=False)
+            df_clean[col] = df_clean[col].astype(str).str.replace(',', '.')
             df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
     
     return df_clean
 
----
 
 def get_data_summary(df):
     """
     Get basic summary statistics for the dataset.
-    
-    Metrics and visualizations use cleaned data where -200 values are replaced by NaN.
     
     Args:
         df (pd.DataFrame): Cleaned dataset
@@ -112,7 +101,6 @@ def get_data_summary(df):
     if df is None:
         return {}
     
-    # Calculating missing data percentage uses the cleaned data (with NaN)
     summary = {
         'total_records': len(df),
         'date_range': {
@@ -125,14 +113,10 @@ def get_data_summary(df):
     
     return summary
 
----
 
 def calculate_air_quality_metrics(df):
     """
     Calculate key air quality metrics and statistics.
-    
-    Metrics are calculated on columns after dropping NaN values, ensuring
-    only cleaned data is used, as required.
     
     Args:
         df (pd.DataFrame): Cleaned dataset
@@ -147,7 +131,6 @@ def calculate_air_quality_metrics(df):
     
     # CO (Carbon Monoxide) metrics
     if 'CO(GT)' in df.columns:
-        # .dropna() is used here to ensure metrics use cleaned data only
         co_data = df['CO(GT)'].dropna()
         metrics['co'] = {
             'mean': co_data.mean(),
@@ -192,7 +175,6 @@ def calculate_air_quality_metrics(df):
     
     return metrics
 
----
 
 def filter_by_date_range(df, start_date=None, end_date=None):
     """
@@ -219,14 +201,10 @@ def filter_by_date_range(df, start_date=None, end_date=None):
     
     return df_filtered
 
----
 
 def get_daily_averages(df):
     """
     Calculate daily averages for all numeric columns.
-    
-    The .mean() calculation automatically ignores NaN values (converted from -200),
-    ensuring only cleaned data is used for aggregation.
     
     Args:
         df (pd.DataFrame): Cleaned dataset
@@ -238,7 +216,6 @@ def get_daily_averages(df):
         return None
     
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    # NaN values are automatically excluded from the mean calculation
     daily_avg = df.groupby('Date')[numeric_cols].mean().reset_index()
     
     return daily_avg
