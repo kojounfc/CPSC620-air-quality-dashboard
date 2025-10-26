@@ -86,16 +86,16 @@ def clean_data(df):
     total_before = before_count.sum()
     
     if total_before > 0:
-        print(f"\n🔍 Found -200 values in {(before_count > 0).sum()} columns:")
+        print(f"\nFound -200 values in {(before_count > 0).sum()} columns:")
         print(before_count[before_count > 0])
-    
+
     # Replace -200 with NaN across all columns
     df_clean = df_clean.replace(MISSING_VALUE_CODE, np.nan)
-    
+
     # Verify AFTER cleaning
     after_count = (df_clean == MISSING_VALUE_CODE).sum().sum()
-    print(f"\n✅ Replaced {total_before} instances of -200 with NaN")
-    print(f"✅ Remaining -200 values: {after_count}")
+    print(f"\nReplaced {total_before} instances of -200 with NaN")
+    print(f"Remaining -200 values: {after_count}")
     
     return df_clean
 
